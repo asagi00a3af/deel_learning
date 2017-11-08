@@ -79,12 +79,14 @@ if __name__ == '__main__':
                         help='ratio of (origin image / style image)')
     parser.add_argument('--gpu', '-g', type=int, default=0,
                         help='GPU ID (negative value indicates CPU)')
+    parser.add_argument('--image', '-i', type=str, default='img_01',
+                        help='input image')
     parser.add_argument('--style', '-s', type=str, default='style_02',
-                        help='GPU ID (negative value indicates CPU)')
+                        help='style image')
     args = parser.parse_args()
 
     # 入力画像読み込み
-    input_img = cp.array(io.imread('./img/img_01.bmp'), dtype=np.float32)
+    input_img = cp.array(io.imread('./img/{}.bmp'.format(args.style)), dtype=np.float32)
     input_img = input_img.reshape(1, *input_img.shape).transpose(0, 3, 1, 2)
     # input_img = (input_img - 127) #/ 255.0
     # スタイル画像読み込み
@@ -157,3 +159,4 @@ if __name__ == '__main__':
             img2 = (img2.reshape(ch, h, w).transpose(1,2,0)).astype(np.uint8)
             io.imsave('./results/img1_{}_iter_{}.bmp'.format(args.style, itr), img)
             io.imsave('./results/img2_{}_iter_{}.bmp'.format(args.style, itr), img2)
+
