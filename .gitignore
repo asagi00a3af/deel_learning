@@ -111,5 +111,6 @@ venv.bak/
 *.npz
 *.npy
 data/*
-results/*
-result/*
+*/results/*
+*/result/*
+*.caffemodel
