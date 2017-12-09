@@ -92,6 +92,23 @@ def load_data(vocab, seq_in, seq_out):
 
     return data
 
+def convert(batch, device):
+    def to_device_batch(batch):
+        if device is None:
+            return batch
+        elif  device < 0:
+            return [chainer.dataset.to_device(device, x) for x in batch]
+        else:
+            xp = cuda.cupy.get_array_module(*batch)
+            concat = xp.concatenate(batch, axis=0)
+            sections = np.cumsum([len(x) for x in batch[:-1]], dtype='i')
+            concat_dev = chainer.dataset.to_device(device, concat)
+            batch_dev = cuda.cupy.split(concat_dev, sections)
+            return batch_dev
+
+    return {'xs': to_device_batch([x for x, _ in batch]),
+            'ys': to_device_batch([y for _, y in batch])}
+
 def main():
     """
     main関数
@@ -100,12 +117,33 @@ def main():
     parser.add_argument('--vocab', '-v', type=str, default='dataset/vocab.txt')
     parser.add_argument('--seq_in', '-i', type=str, default='dataset/input_sequence.txt')
     parser.add_argument('--seq_out', '-o', type=str, default='dataset/output_sequence.txt')
+    parser.add_argument('--epoch', '-e', type=int, default=10)
+    parser.add_argument('--log_interval', type=int, default=200)
+    parser.add_argument('--gpu', '-g', type=int, default=-1)
+    parser.add_argument('--batch', '-b', type=int, default=64)
+    parser.add_argument('--layer', '-l', type=int, default=3)
+    parser.add_argument('--unit', '-u', type=int, default=256)
     args = parser.parse_args()
 
     vocab_ids = load_vocab(args.vocab)
     train_data = load_data(vocab_ids, args.seq_in, args.seq_out)
 
+    model = Seq2seq(n_layers=args.layer, n_vocab=len(vocab_ids), n_units=args.unit)
 
+    optimizer = chainer.optimizers.Adam()
+    optimizer.setup(model)
+
+    train_iter = chainer.iterators.SerialIterator(train_data, args.batch)
+    updater = training.StandardUpdater(train_iter, optimizer, converter=convert, device=args.gpu)
+
+    trainer = training.Trainer(updater, (args.epoch, 'epoch'))
+    trainer.extend(extensions.LogReport(trigger=(args.log_interval, 'iteration')))
+    trainer.extend(extensions.PrintReport(
+        ['epoch', 'iteration', 'main/loss', 'elapsed_time']),
+        trigger=(args.log_interval, 'iteration'))
+
+    print('start training')
+    trainer.run()
 
 if __name__ == '__main__':
     main()
