@@ -27,21 +27,25 @@ FILE_PATH = path.dirname(path.abspath(__file__))
 ROOT_PATH = path.normpath(path.join(FILE_PATH, '../'))
 
 class Generator(chainer.Chain):
-    def __init__(self):
+    def __init__(self, ch=512, bw=4, wscale=0.02):
+        self.ch = ch
+        self.bw = bw
+        self.wscale = wscale
         super(Generator, self).__init__()
         with self.init_scope():
-            self.fc = L.Linear(100, 4 * 4 * 1024)
-            self.bn0 = L.BatchNormalization(4 * 4 * 1024)
-            self.dconv1 = L.Deconvolution2D(None, 512, ksize=4, stride=2, pad=1)
-            self.bn1 = L.BatchNormalization(512)
-            self.dconv2 = L.Deconvolution2D(None, 256, ksize=4, stride=2, pad=1)
-            self.bn2 = L.BatchNormalization(256)
-            self.dconv3 = L.Deconvolution2D(None, 128, ksize=4, stride=2, pad=1)
-            self.bn3 = L.BatchNormalization(128)
-            self.dconv4 = L.Deconvolution2D(None, 1, ksize=4, stride=2, pad=1)
+            init_w = chainer.initializers.Normal(wscale)
+            self.fc = L.Linear(100, bw * bw * ch, initialW=init_w)
+            self.dconv1 = L.Deconvolution2D(None, ch // 2, ksize=4, stride=2, pad=1, initialW=init_w)
+            self.dconv2 = L.Deconvolution2D(None, ch // 4, ksize=4, stride=2, pad=1, initialW=init_w)
+            self.dconv3 = L.Deconvolution2D(None, ch // 8, ksize=4, stride=2, pad=1, initialW=init_w)
+            self.dconv4 = L.Deconvolution2D(None, 1, ksize=4, stride=2, pad=1, initialW=init_w)
+            self.bn0 = L.BatchNormalization(bw * bw * ch)
+            self.bn1 = L.BatchNormalization(ch // 2)
+            self.bn2 = L.BatchNormalization(ch // 4)
+            self.bn3 = L.BatchNormalization(ch // 8)
 
     def __call__(self, z):
-        h = F.reshape(F.relu(self.fc(z)), (z.shape[0], 1024, 4, 4))
+        h = F.reshape(F.relu(self.bn0(self.fc(z))), (len(z), self.ch, self.bw, self.bw))
         h = F.relu(self.bn1(self.dconv1(h)))
         h = F.relu(self.bn2(self.dconv2(h)))
         h = F.relu(self.bn3(self.dconv3(h)))
@@ -49,28 +53,44 @@ class Generator(chainer.Chain):
         return x
 
 class Discriminator(chainer.Chain):
-    def __init__(self):
-        super(Generator, self).__init__()
+    def __init__(self, ch=512, bw=4, wscale=0.02):
+        self.ch = ch
+        self.bw = bw
+        self.wscale = wscale
+        super(Discriminator, self).__init__()
         with self.init_scope():
-            self.conv1 = L.Convolution2D(None, 64, ksize=4, st)
+            init_w = chainer.initializers.Normal(wscale)
+            self.conv1_0 = L.Convolution2D(None, ch // 8, ksize=3, stride=1, pad=1, initialW=init_w)
+            self.conv1_1 = L.Convolution2D(None, ch // 4, ksize=4, stride=2, pad=1, initialW=init_w)
+            self.conv2_0 = L.Convolution2D(None, ch // 4, ksize=3, stride=1, pad=1, initialW=init_w)
+            self.conv2_1 = L.Convolution2D(None, ch // 2, ksize=4, stride=2, pad=1, initialW=init_w)
+            self.conv3_0 = L.Convolution2D(None, ch // 2, ksize=3, stride=1, pad=1, initialW=init_w)
+            self.conv3_1 = L.Convolution2D(None, ch // 1, ksize=4, stride=2, pad=1, initialW=init_w)
+            self.conv4 = L.Convolution2D(None, ch // 1, ksize=3, stride=1, pad=1, initialW=init_w)
+            self.l5 = L.Linear(bw * bw * ch, 1, initialW=init_w)
+            self.bn1_1 = L.BatchNormalization(ch // 4, use_gamma=False)
+            self.bn2_0 = L.BatchNormalization(ch // 4, use_gamma=False)
+            self.bn2_1 = L.BatchNormalization(ch // 2, use_gamma=False)
+            self.bn3_0 = L.BatchNormalization(ch // 2, use_gamma=False)
+            self.bn3_1 = L.BatchNormalization(ch // 1, use_gamma=False)
+            self.bn4_0 = L.BatchNormalization(ch // 1, use_gamma=False)
 
-    def __call__(self, z):
+    def __call__(self, x):
+        h = F.leaky_relu(self.conv1_0(x))
+        h = F.leaky_relu(self.bn1_1(self.conv1_1(h)))
+        h = F.leaky_relu(self.bn2_0(self.conv2_0(h)))
+        h = F.leaky_relu(self.bn2_1(self.conv2_1(h)))
+        h = F.leaky_relu(self.bn3_0(self.conv3_0(h)))
+        h = F.leaky_relu(self.bn3_1(self.conv3_1(h)))
+        h = F.leaky_relu(self.bn4_0(self.conv4(h)))
+        h = self.l5(h)
+        return h
 
+class DCGANUpdater(chainer.training.StandardUpdater):
+    def __init__():
+        pass
 
-def transform(data):
-    '''
-    data aug function
-    '''
-    img, label = data
-    # random crop
-    img = transforms.random_crop(img, (24, 24))
-    # random flip
-    img = transforms.random_flip(img, y_random=True, x_random=True)
-    # random rot
-    transforms.random_rotate(img)
-    if random.choice([True, False]):
-        transforms.pca_lighting(img, 0.1)
-    return img, label
+    def loss_dis(self, dis)
 
 def main():
     '''
@@ -90,14 +110,10 @@ def main():
                         help='GPU ID (negative value indicates CPU)')
     parser.add_argument('--resume', '-r', default='',
                         help='Resume the training from snapshot')
-    parser.add_argument('--widerate', type=int, default=1, help='WideResnet wide parameter')
-    parser.add_argument('--blocks', nargs='+', type=int,
-                        default=[1, 1, 1], help='WideResnet blocks parameter')
     args = parser.parse_args()
 
     # save didrectory
-    outdir = path.join(FILE_PATH, 'results/cifar10_wideresnet_{}_{}_lr_{}_lr_shift'.format(
-        args.widerate, ''.join(map(str, args.blocks)), args.learnrate))
+    outdir = path.join(FILE_PATH, 'results/DCGAN_mnist')
     if not path.exists(outdir):
         os.makedirs(outdir)
     with open(path.join(outdir, 'arg_param.txt'), 'w') as f:
@@ -110,60 +126,36 @@ def main():
     print('# Epoch: {}'.format(args.epoch))
     print('# Dataset: CIFAR-10')
     print('# Learning-rate :{}'.format(args.learnrate))
-    print('# Wide Resnet widerate :{}'.format(args.widerate))
-    print('# Wide Resnet blocks :{}'.format(args.blocks))
     print('# out directory :{}'.format(outdir))
     print('')
 
     #loading dataset
-    train, test = load_dataset()
+    train, _ = chainer.datasets.get_mnist()
 
     # prepare model
-    model = L.Classifier(WideResNet(num_class=10, widerate=args.widerate, blocks=args.blocks))
+    gen = Generator()
+    dis = Discriminator()
+
     if args.gpu >= 0:
         chainer.cuda.get_device_from_id(args.gpu).use()
-        model.to_gpu()
+        gen.to_gpu()
+        dis.to_gpu()
 
     # setup optimizer
-    optimizer = chainer.optimizers.MomentumSGD(lr=args.learnrate)
-    optimizer.setup(model)
+    opt_gen = chainer.optimizers.Adam(alpha=0.0002, beta1=0.5)
+    opt_gen.setup(gen)
+    opt_gen.add_hook(chainer.optimizer.WeightDecay(0.0001), 'hook_dec')
+    # setup optimizer
+    opt_dis = chainer.optimizers.Adam(alpha=0.0002, beta1=0.5)
+    opt_dis.setup(dis)
+    opt_dis.add_hook(chainer.optimizer.WeightDecay(0.0001), 'hook_dec')
 
     # setup iter
     train_iter = chainer.iterators.SerialIterator(train, args.batchsize)
-    test_iter = chainer.iterators.SerialIterator(test, args.batchsize, repeat=False, shuffle=False)
 
     # setup trainer
     updater = training.StandardUpdater(train_iter, optimizer, device=args.gpu)
     trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=outdir)
-
-    # eval test data
-    trainer.extend(extensions.Evaluator(test_iter, model, device=args.gpu))
-    # dump loss graph
-    trainer.extend(extensions.dump_graph('main/loss'))
-    # lr shift
-    trainer.extend(extensions.ExponentialShift("lr", 0.1), trigger=(100, 'epoch'))
-    # save snapshot
-    trainer.extend(extensions.snapshot(), trigger=(10, 'epoch'))
-    trainer.extend(extensions.snapshot_object(
-        model, 'model_snapshot_{.updater.epoch}'), trigger=(10, 'epoch'))
-    # log report
-    trainer.extend(extensions.LogReport())
-    trainer.extend(extensions.observe_lr(), trigger=(1, 'epoch'))
-    #  plot loss graph
-    trainer.extend(
-        extensions.PlotReport(['main/loss', 'validation/main/loss'],
-                                'epoch', file_name='loss.png'))
-    # plot acc graph
-    trainer.extend(
-        extensions.PlotReport(
-            ['main/accuracy', 'validation/main/accuracy'],
-            'epoch', file_name='accuracy.png'))
-    # print info
-    trainer.extend(extensions.PrintReport(
-        ['epoch', 'main/loss', 'validation/main/loss',
-         'main/accuracy', 'validation/main/accuracy', 'lr', 'elapsed_time']))
-    # print progbar
-    trainer.extend(extensions.ProgressBar())
 
     trainer.run()
 

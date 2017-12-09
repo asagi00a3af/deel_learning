@@ -37,7 +37,6 @@ class VGG16(chainer.Chain):
             self.conv5_2 = L.Convolution2D(512, 512, 3, 1, 1)
             self.conv5_3 = L.Convolution2D(512, 512, 3, 1, 1)
 
-
     def __call__(self, x):
         # Using max_pooling -> ave_pooling
         # 1 Layer
@@ -114,7 +113,9 @@ if __name__ == '__main__':
 
     # 学習初期化
     # 入力画像の隠れ層とスタイル画像のスタイル行列
-    input_map = model(input_img)
+    with chainer.using_config('train', False):
+        with chainer.using_config('enable_backprop', False):
+            input_map = model(input_img)
     style_mat = [get_matrix(y) for y in model(style_img)]
 
     # 生成画像初期化
@@ -129,7 +130,7 @@ if __name__ == '__main__':
     optimizer.setup(gen_img)
 
     # マップ,スタイルの各層の学習係数
-    alpha = [0, 0, 0, 1, 1]
+    alpha = [0, 0, 0, 0.5, 1]
     beta = [1, 1, 1, 1, 1]
     # [2.0 ** () for i in range(5)]
     # 学習ループ
