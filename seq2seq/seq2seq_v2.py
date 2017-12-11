@@ -41,6 +41,7 @@ class Seq2seq(chainer.Chain):
         super(Seq2seq, self).__init__()
         with self.init_scope():
             self.embed = L.EmbedID(n_vocab, n_units)
+            self.embed_y = L.EmbedID(n_vocab, n_units)
             self.encoder = L.NStepLSTM(n_layers, n_units, n_units, 0.1)
             self.decoder = L.NStepLSTM(n_layers, n_units, n_units, 0.1)
             self.W = L.Linear(n_units, n_vocab)
@@ -58,7 +59,8 @@ class Seq2seq(chainer.Chain):
 
         #
         exs = sequence_embed(self.embed, xs)
-        eys = sequence_embed(self.embed, ys_in)
+        # eys = sequence_embed(self.embed, ys_in)
+        eys = sequence_embed(self.embed_y, ys_in)
 
         batch = len(xs)
 
@@ -138,7 +140,7 @@ def main():
     args = parser.parse_args()
 
     # save didrectory
-    outdir = path.join(FILE_PATH, 'results/seq2seq_conversation_epoch_{}_layer_{}_unit_{}'.format(
+    outdir = path.join(FILE_PATH, 'results/seq2seq_conversation_v2_epoch_{}_layer_{}_unit_{}'.format(
         args.epoch, args.layer, args.unit))
     if not path.exists(outdir):
         os.makedirs(outdir)

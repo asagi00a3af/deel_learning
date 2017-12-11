@@ -6,7 +6,7 @@ import MeCab
 
 if __name__ == '__main__':
     # Mecabの準備
-    tagger = MeCab.Tagger('-Owakati -d /usr/lib/mecab/dic/mecab-ipadic-neologd')
+    tagger = MeCab.Tagger('-Owakati -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd')
     # ファイル読み込み
     fname_list = sorted(glob('dataset/nucc/data*.txt'))
     sequence_pairs = []
