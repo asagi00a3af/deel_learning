@@ -132,11 +132,13 @@ def main():
     parser.add_argument('--seq_in', '-i', type=str, default='dataset/input_sequence_skype_nucc.txt')
     parser.add_argument('--seq_out', '-o', type=str, default='dataset/output_sequence_skype_nucc.txt')
     parser.add_argument('--epoch', '-e', type=int, default=100)
-    parser.add_argument('--log_interval', type=int, default=1000)
+    parser.add_argument('--log_epoch', type=int, default=1)
+    parser.add_argument('--alpha', '-a', type=float, default=0.001)
     parser.add_argument('--gpu', '-g', type=int, default=0)
     parser.add_argument('--batch', '-b', type=int, default=64)
     parser.add_argument('--layer', '-l', type=int, default=3)
     parser.add_argument('--unit', '-u', type=int, default=256)
+    parser.add_argument('--lr_shift', '-s', action='store_true', default=False)
     args = parser.parse_args()
 
     # save didrectory
@@ -151,10 +153,12 @@ def main():
     # print param
     print('# GPU: {}'.format(args.gpu))
     print('# Minibatch-size: {}'.format(args.batch))
+    print('# Adam alpha: {}'.format(args.alpha))
     print('# Epoch: {}'.format(args.epoch))
     print('# embedID unit :{}'.format(args.unit))
     print('# LSTM layer :{}'.format(args.layer))
     print('# out directory :{}'.format(outdir))
+    print('# lr shift: {}'.format(args.lr_shift))
     print('')
 
     # load dataset
@@ -168,7 +172,7 @@ def main():
         model.to_gpu()
 
     # optimizer
-    optimizer = chainer.optimizers.Adam()
+    optimizer = chainer.optimizers.Adam(alpha=args.alpha)
     optimizer.setup(model)
 
     # iter
@@ -178,12 +182,16 @@ def main():
     trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=outdir)
 
     # extention
+    # lr shift
+    if args.lr_shift:
+        trainer.extend(extensions.ExponentialShift("alpha", 0.1), trigger=(100, 'epoch'))
     # log
-    trainer.extend(extensions.LogReport(trigger=(args.log_interval, 'iteration')))
+    trainer.extend(extensions.LogReport(trigger=(args.log_epoch, 'epoch')))
+    trainer.extend(extensions.observe_lr(), trigger=(args.log_epoch, 'epoch'))
     # print info
     trainer.extend(extensions.PrintReport(
-        ['epoch', 'iteration', 'main/loss', 'elapsed_time']),
-        trigger=(args.log_interval, 'iteration'))
+        ['epoch', 'iteration', 'main/loss', 'lr', 'elapsed_time']),
+        trigger=(args.log_epoch, 'epoch'))
     # print progbar
     trainer.extend(extensions.ProgressBar())
     # plot loss graph
