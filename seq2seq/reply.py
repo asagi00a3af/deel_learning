@@ -145,7 +145,7 @@ class Talker():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--vocab', '-v', type=str, default='dataset/vocab_skype_nucc.txt')
-    parser.add_argument('--model', '-m', type=str, default='dataset/seq2seq_conversation_v2_e200_l3_u256_model.npz')
+    parser.add_argument('--model', '-m', type=str, default='models/seq2seq_conversation_v2_e200_l3_u256_model.npz')
     parser.add_argument('--gpu', '-g', type=int, default=-1)
     parser.add_argument('--layer', '-l', type=int, default=3)
     parser.add_argument('--unit', '-u', type=int, default=256)
