@@ -1,7 +1,7 @@
 import argparse
 from tqdm import tqdm
 import numpy as np
-
+import subprocess
 import time
 import MeCab
 import mojimoji
@@ -14,6 +14,10 @@ import chainer.links as L
 
 UNK = 0
 EOS = 1
+
+mecab_tagger_option = '-Owakati -d '
+mecab_tagger_option += subprocess.check_output(['mecab-config', '--dicdir']).decode().strip()
+mecab_tagger_option += '/mecab-ipadic-neologd'
 
 def sequence_embed(embed, xs):
     # embedにまとめて入れるために区切りを保存する
@@ -102,8 +106,7 @@ def load_vocab(vocab_path):
     return word_ids
 
 def words2ids(txt):
-    # tagger = MeCab.Tagger('-Owakati -d /usr/lib/mecab/dic/mecab-ipadic-neologd')
-    tagger = MeCab.Tagger('-Owakati -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd')
+    tagger = MeCab.Tagger(mecab_tagger_option)
 
     txt = mojimoji.zen_to_han(txt, kana=False)
     txt = tagger.parse(txt)
@@ -121,8 +124,7 @@ class Talker():
             self.model.to_gpu(gpu)
         chainer.serializers.load_npz(model_path, self.model)
 
-        # self.tagger = MeCab.Tagger('-Owakati -d /usr/lib/mecab/dic/mecab-ipadic-neologd')
-        self.tagger = MeCab.Tagger('-Owakati -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd')
+        self.tagger = MeCab.Tagger(mecab_tagger_option)
 
 
     def _words2ids(self, txt):
@@ -159,6 +161,7 @@ def main():
             res = talker.response(txt)
             print("out: ", res)
     except KeyboardInterrupt:
-        print("#End test")
+        print("\n#End test")
+
 if __name__ == '__main__':
     main()

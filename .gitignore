@@ -115,5 +115,6 @@ data/*
 */result/*
 *.caffemodel
 */dataset/*
-results
+seq2seq/results
 results/
+seq2seq/models/
