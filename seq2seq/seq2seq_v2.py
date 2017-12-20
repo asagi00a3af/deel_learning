@@ -184,7 +184,7 @@ def main():
     # extention
     # lr shift
     if args.lr_shift:
-        trainer.extend(extensions.ExponentialShift("alpha", 0.1), trigger=(100, 'epoch'))
+        trainer.extend(extensions.ExponentialShift("alpha", 0.1), trigger=(200, 'epoch'))
     # log
     trainer.extend(extensions.LogReport(trigger=(args.log_epoch, 'epoch')))
     trainer.extend(extensions.observe_lr(), trigger=(args.log_epoch, 'epoch'))

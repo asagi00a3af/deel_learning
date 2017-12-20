@@ -71,13 +71,20 @@ class Seq2seq(chainer.Chain):
         chainer.report({'loss': loss.data}, self)
         return loss
 
-def load_vocab(vocab_path):
+def load_vocab(vocab_path, ratio=1.0):
     """
     語彙idを返す関数
     '***' は<UNK>と統一で良さげ?
     """
+    # with open(vocab_path, 'r') as f:
+    #     word_ids = {line.strip() : i + 2 for i, line in enumerate(f)}
+    word_ids = {}
     with open(vocab_path, 'r') as f:
-        word_ids = {line.strip() : i + 2 for i, line in enumerate(f)}
+        length = len(list(f)) * ratio
+        for i, line in enumerate(f):
+            if i + 2 > length:
+                break
+            word_ids[line.strip()] = i + 2
     word_ids['<UNK>'] = UNK
     word_ids['<EOS>'] = EOS
     return word_ids
@@ -126,9 +133,9 @@ def main():
     main関数
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--vocab', '-v', type=str, default='dataset/vocab_skype_nucc.txt')
-    parser.add_argument('--seq_in', '-i', type=str, default='dataset/input_sequence_skype_nucc.txt')
-    parser.add_argument('--seq_out', '-o', type=str, default='dataset/output_sequence_skype_nucc.txt')
+    parser.add_argument('--vocab', '-v', type=str, default='dataset/vocab.txt')
+    parser.add_argument('--seq_in', '-i', type=str, default='dataset/input_sequence.txt')
+    parser.add_argument('--seq_out', '-o', type=str, default='dataset/output_sequence.txt')
     parser.add_argument('--epoch', '-e', type=int, default=100)
     parser.add_argument('--log_epoch', type=int, default=1)
     parser.add_argument('--alpha', '-a', type=float, default=0.001)
@@ -136,12 +143,13 @@ def main():
     parser.add_argument('--batch', '-b', type=int, default=64)
     parser.add_argument('--layer', '-l', type=int, default=3)
     parser.add_argument('--unit', '-u', type=int, default=256)
+    parser.add_argument('--vocab_ratio', '-r', type=float, default=1.0)
     parser.add_argument('--lr_shift', '-s', action='store_true', default=False)
     args = parser.parse_args()
 
     # save didrectory
-    outdir = path.join(FILE_PATH, 'results/seq2seq_conversation_epoch_{}_layer_{}_unit_{}'.format(
-        args.epoch, args.layer, args.unit))
+    outdir = path.join(FILE_PATH, 'results/seq2seq_conversation_epoch_{}_layer_{}_unit_{}_vr_{}'.format(
+        args.epoch, args.layer, args.unit, args.vocab_ratio))
     if not path.exists(outdir):
         os.makedirs(outdir)
     with open(path.join(outdir, 'arg_param.txt'), 'w') as f:
@@ -160,7 +168,7 @@ def main():
     print('')
 
     # load dataset
-    vocab_ids = load_vocab(args.vocab)
+    vocab_ids = load_vocab(args.vocab, 0.7)
     train_data = load_data(vocab_ids, args.seq_in, args.seq_out)
 
     # prepare model
@@ -182,7 +190,7 @@ def main():
     # extention
     # lr shift
     if args.lr_shift:
-        trainer.extend(extensions.ExponentialShift("alpha", 0.1), trigger=(100, 'epoch'))
+        trainer.extend(extensions.ExponentialShift("alpha", 0.1), trigger=(200, 'epoch'))
     # log
     trainer.extend(extensions.LogReport(trigger=(args.log_epoch, 'epoch')))
     trainer.extend(extensions.observe_lr(), trigger=(args.log_epoch, 'epoch'))
