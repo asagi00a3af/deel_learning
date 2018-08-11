@@ -117,5 +117,5 @@ data/*
 seq2seq/results
 seq2seq/models/
 
-! */results/.gitkeep
-! .gitkeep
+!*/results/.gitkeep
+!.gitkeep
