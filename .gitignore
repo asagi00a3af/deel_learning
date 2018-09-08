@@ -110,12 +110,10 @@ venv.bak/
 *.npz
 *.npy
 data/*
-*/results/*
-*/result/*
+results
+result
 *.caffemodel
 */dataset/*
 seq2seq/results
 seq2seq/models/
 
-!*/results/.gitkeep
-!.gitkeep
