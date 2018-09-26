@@ -109,11 +109,11 @@ venv.bak/
 *.ipython
 *.npz
 *.npy
-data/*
+data
 results
 result
 *.caffemodel
-*/dataset/*
+dataset
 seq2seq/results
 seq2seq/models/
-
+images
